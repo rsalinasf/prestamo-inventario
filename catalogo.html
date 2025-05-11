@@ -2,18 +2,195 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Catálogo de Inventario</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>🗂️ Catálogo de Inventario</title>
   <style>
-    body { font-family: sans-serif; padding: 20px; }
-    .item { display: inline-block; margin: 10px; text-align: center; }
-    .item h4 { margin: 5px 0; }
+    /* Mobile-First Styling */
+    body {
+      margin: 0;
+      padding: 16px;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      background-color: #f2f2f7;
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+    h1 {
+      font-size: 1.5rem;
+      color: #0a84ff;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+    form, select, button {
+      width: calc(100% - 32px);
+      max-width: 360px;
+    }
+    form {
+      background: white;
+      padding: 16px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      margin-bottom: 16px;
+    }
+    form input {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 12px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 1rem;
+      box-sizing: border-box;
+    }
+    form button {
+      background-color: #32d74b;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 1rem;
+    }
+    select {
+      padding: 10px;
+      margin-bottom: 12px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 1rem;
+    }
+    button#genQR {
+      background-color: #0a84ff;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 1rem;
+      margin-bottom: 16px;
+    }
+    #mensaje {
+      font-size: 0.95rem;
+      margin-bottom: 16px;
+      color: #ff3b30;
+      text-align: center;
+      min-height: 1.2em;
+    }
+    #qr {
+      margin-top: 16px;
+      background: white;
+      padding: 16px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    footer {
+      margin-top: auto;
+      padding: 12px 0;
+      font-size: 0.8rem;
+      color: #888;
+      text-align: center;
+    }
+    @media (min-width: 601px) {
+      body { margin: 40px auto; max-width: 400px; }
+    }
   </style>
 </head>
 <body>
-  <h1>Catálogo de Artículos</h1>
-  <div id="lista"></div>
+  <h1>🗂️ Catálogo de Inventario</h1>
+  <div id="mensaje"></div>
 
+  <!-- Formulario para añadir nuevo artículo -->
+  <form id="addForm">
+    <input type="text" id="newID" placeholder="Nuevo ID" required>
+    <input type="text" id="newName" placeholder="Nuevo Nombre" required>
+    <button type="submit">Agregar al Inventario</button>
+  </form>
+
+  <!-- Selección y generación de QR -->
+  <select id="itemSelect">
+    <option value="">Seleccione un artículo</option>
+  </select>
+  <button id="genQR" disabled>Generar QR</button>
+  <div id="qr"></div>
+
+  <!-- Librerías y configuración -->
+  <script src="js/config.js"></script>
   <script src="js/qrcode.min.js"></script>
-  <script src="js/catalogo.js"></script>
+
+  <!-- Lógica de catálogo -->
+  <script>
+    const mensaje   = document.getElementById('mensaje');
+    const addForm   = document.getElementById('addForm');
+    const newID     = document.getElementById('newID');
+    const newName   = document.getElementById('newName');
+    const itemSelect= document.getElementById('itemSelect');
+    const genQRBtn  = document.getElementById('genQR');
+    const qrDiv     = document.getElementById('qr');
+
+    function loadInventory() {
+      fetch(`${WEB_APP_URL}?action=getInventory`)
+        .then(res => res.json())
+        .then(items => {
+          itemSelect.innerHTML = '<option value="">Seleccione un artículo</option>';
+          items.forEach(it => {
+            const opt = document.createElement('option');
+            opt.value = it.ID;
+            opt.textContent = it.Nombre;
+            itemSelect.appendChild(opt);
+          });
+          genQRBtn.disabled = true;
+          qrDiv.innerHTML = '';
+          mensaje.textContent = '';
+        })
+        .catch(() => mensaje.textContent = 'Error al cargar inventario.');
+    }
+
+    // Evento cambio de selección
+    itemSelect.addEventListener('change', () => {
+      genQRBtn.disabled = !itemSelect.value;
+      qrDiv.innerHTML = '';
+    });
+
+    // Generar QR
+    genQRBtn.addEventListener('click', () => {
+      qrDiv.innerHTML = '';
+      new QRCode(qrDiv, {
+        text: itemSelect.value,
+        width: 128,
+        height: 128
+      });
+    });
+
+    // Agregar nuevo artículo al sheet
+    addForm.addEventListener('submit', e => {
+      e.preventDefault();
+      mensaje.textContent = '';
+      const payload = {
+        ID: newID.value.trim(),
+        Nombre: newName.value.trim()
+      };
+      fetch(WEB_APP_URL, {
+        method: 'POST',
+        body:   JSON.stringify(payload)
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.result === 'success') {
+          mensaje.style.color = '#32d74b';
+          mensaje.textContent = 'Artículo agregado.';
+          newID.value = '';
+          newName.value = '';
+          loadInventory();
+        } else throw new Error();
+      })
+      .catch(() => {
+        mensaje.style.color = '#ff3b30';
+        mensaje.textContent = 'Error al agregar artículo.';
+      });
+    });
+
+    // Carga inicial
+    loadInventory();
+  </script>
+
+  <footer>By RICARDO SALINAS</footer>
 </body>
 </html>
