@@ -57,7 +57,7 @@ form.addEventListener('submit', e => {
     msg.style.color = 'black';
     msg.textContent = 'Enviando…';
 
-    fetch('https://script.google.com/macros/s/AKfycbxWQx6aPTk9fWdBG8ruRnjl_KmKb-tAzS2F-sy92-KosTKFne1_unvFECi9quWGmE2evg/exec', {
+    fetch(WEB_APP_URL, {
     method: 'POST',
     body:   JSON.stringify(payload)
     })
