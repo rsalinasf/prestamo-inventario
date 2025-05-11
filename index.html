@@ -16,20 +16,19 @@
   <div id="scanner" hidden>
     <video id="cam" playsinline autoplay></video>
     <canvas id="canvas" hidden></canvas>
-
     <form id="form" hidden>
-      <label>ID Artículo:
+      <label>ID Artículo:<br>
         <input type="text" id="idArticulo" readonly>
-      </label>
-      <label>Nombre completo:
+      </label><br>
+      <label>Nombre completo:<br>
         <input type="text" id="usuario" placeholder="Tu nombre" required>
-      </label>
-      <label>Cantidad:
+      </label><br>
+      <label>Cantidad:<br>
         <input type="number" id="cantidad" min="1" value="1" required>
-      </label>
-      <label>Duración (horas):
+      </label><br>
+      <label>Duración (horas):<br>
         <input type="number" id="duracion" min="1" max="3" placeholder="1–3" required>
-      </label>
+      </label><br>
       <button type="submit">Registrar</button>
     </form>
   </div>
@@ -39,7 +38,92 @@
   <!-- Configuración y librerías -->
   <script src="js/config.js"></script>
   <script src="js/jsQR.js"></script>
-  <script src="js/main.js"></script>
+
+  <!-- Lógica de cámara y envío -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const btnScan = document.getElementById('btnScan');
+      const scanner = document.getElementById('scanner');
+      const video   = document.getElementById('cam');
+      const canvas  = document.getElementById('canvas');
+      const ctx     = canvas.getContext('2d');
+      const form    = document.getElementById('form');
+      const idIn    = document.getElementById('idArticulo');
+      const msg     = document.getElementById('mensaje');
+      let streaming = false;
+
+      btnScan.addEventListener('click', () => {
+        btnScan.hidden  = true;
+        scanner.hidden  = false;
+        form.hidden     = true;
+        msg.textContent = '';
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+          .then(stream => {
+            video.srcObject = stream;
+            streaming       = true;
+            requestAnimationFrame(scanQR);
+          })
+          .catch(err => {
+            console.error('Error cámara:', err);
+            msg.style.color = 'red';
+            msg.textContent = 'Error: no se pudo acceder a la cámara.';
+            btnScan.hidden = false;
+          });
+      });
+
+      function scanQR() {
+        if (!streaming) return;
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+          canvas.width  = video.videoWidth;
+          canvas.height = video.videoHeight;
+          ctx.drawImage(video, 0, 0);
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const code      = jsQR(imageData.data, imageData.width, imageData.height);
+          if (code && code.data) {
+            idIn.value = code.data;
+            form.hidden = false;
+            streaming = false;
+            video.srcObject.getTracks().forEach(t => t.stop());
+          }
+        }
+        if (streaming) requestAnimationFrame(scanQR);
+      }
+
+      form.addEventListener('submit', async e => {
+        e.preventDefault();
+        msg.style.color = 'black';
+        msg.textContent = 'Enviando...';
+        const payload = {
+          id:       idIn.value,
+          usuario:  document.getElementById('usuario').value.trim(),
+          cantidad: parseInt(document.getElementById('cantidad').value, 10),
+          duracion: parseInt(document.getElementById('duracion').value, 10)
+        };
+        try {
+          const resp = await fetch(WEB_APP_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          if (!resp.ok) throw new Error('Network error ' + resp.status);
+          const data = await resp.json();
+          console.log('Respuesta préstamo:', data);
+          if (data.result === 'loan_success' || data.result === 'éxito') {
+            msg.style.color = 'green';
+            msg.textContent = '✅ Préstamo registrado.';
+            form.reset();
+            form.hidden = true;
+            btnScan.hidden = false;
+          } else throw new Error('Error en respuesta: ' + data.result);
+        } catch (err) {
+          console.error('Registro error:', err);
+          msg.style.color = 'red';
+          msg.textContent = '❌ Error al registrar préstamo.';
+          btnScan.hidden = false;
+        }
+      });
+    });
+  </script>
 
   <footer>By RICARDO SALINAS</footer>
 </body>
