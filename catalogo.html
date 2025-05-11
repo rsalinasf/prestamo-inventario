@@ -117,13 +117,13 @@
 
   <!-- Lógica de catálogo -->
   <script>
-    const mensaje   = document.getElementById('mensaje');
-    const addForm   = document.getElementById('addForm');
-    const newID     = document.getElementById('newID');
-    const newName   = document.getElementById('newName');
-    const itemSelect= document.getElementById('itemSelect');
-    const genQRBtn  = document.getElementById('genQR');
-    const qrDiv     = document.getElementById('qr');
+    const mensaje    = document.getElementById('mensaje');
+    const addForm    = document.getElementById('addForm');
+    const newID      = document.getElementById('newID');
+    const newName    = document.getElementById('newName');
+    const itemSelect = document.getElementById('itemSelect');
+    const genQRBtn   = document.getElementById('genQR');
+    const qrDiv      = document.getElementById('qr');
 
     function loadInventory() {
       fetch(`${WEB_APP_URL}?action=getInventory`)
@@ -137,7 +137,7 @@
             itemSelect.appendChild(opt);
           });
           genQRBtn.disabled = true;
-          qrDiv.innerHTML = '';
+          qrDiv.innerHTML   = '';
           mensaje.textContent = '';
         })
         .catch(() => mensaje.textContent = 'Error al cargar inventario.');
@@ -173,17 +173,19 @@
       })
       .then(res => res.json())
       .then(data => {
-        if (data.result === 'success') {
+        if (data.result === 'inv_success') {
           mensaje.style.color = '#32d74b';
-          mensaje.textContent = 'Artículo agregado.';
+          mensaje.textContent  = 'Artículo agregado.';
           newID.value = '';
           newName.value = '';
           loadInventory();
-        } else throw new Error();
+        } else {
+          throw new Error();
+        }
       })
       .catch(() => {
         mensaje.style.color = '#ff3b30';
-        mensaje.textContent = 'Error al agregar artículo.';
+        mensaje.textContent  = 'Error al agregar artículo.';
       });
     });
 
